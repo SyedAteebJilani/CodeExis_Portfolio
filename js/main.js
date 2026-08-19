@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const signatureTitle = document.querySelector('.signature-title');
 
     if (signatureText && signatureTitle) {
-        const fullText = "Aateeb Jilani.";
+        const fullText = "Ateeb Jilani.";
         
         const textRect = signatureText.getBoundingClientRect();
         signatureText.style.minHeight = (textRect.height || 30) + 'px';
