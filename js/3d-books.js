@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- 5. CSS FLIPBOOK OVERLAY LOGIC (WITH Z-FIGHTING FIX) ---
+    // --- 5. FLIPBOOK & MOBILE MODAL INTEGRATION ---
     const flipbookOverlay = document.getElementById('flipbook-overlay');
     const interactiveBook = document.getElementById('interactive-book');
     const frontCoverCSS = document.getElementById('frontCover');
@@ -115,7 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let cssCurrentPageIndex = -1;
     const cssTotalPages = fbPages.length;
 
-    // CORE FIX: Dynamic translateZ prevents 3D overlapping
     function updateFlipbookZIndexes() {
         if(!frontCoverCSS) return;
         frontCoverCSS.style.zIndex = isFlipbookOpen ? 0 : 100;
@@ -123,11 +122,9 @@ document.addEventListener("DOMContentLoaded", () => {
         fbPages.forEach((page, index) => {
             const isFlipped = index <= cssCurrentPageIndex;
             if (isFlipped) {
-                // Left side: slightly shift each page towards viewer to prevent overlapping
                 page.style.transform = `rotateY(-180deg) translateZ(${index + 1}px)`;
                 page.style.zIndex = index + 1;
             } else {
-                // Right side: start from a base offset (2px) to stay strictly above the static back-cover
                 const zOffset = cssTotalPages - index + 2; 
                 page.style.transform = `rotateY(0deg) translateZ(${zOffset}px)`;
                 page.style.zIndex = cssTotalPages - index;
@@ -135,7 +132,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
-    // Initialize Z-depths immediately to avoid initial flash
     updateFlipbookZIndexes();
     
     document.querySelectorAll('.page-action-next').forEach(el => {
@@ -189,12 +185,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function openBook(book) {
         if (isBookOpen) return;
-        isBookOpen = true; 
         
+        const project = book.userData.project;
+
+        // --- MOBILE RESPONSIVE CHECK (< 768px): SHOWS CLEAN MOBILE CARD MODAL ---
+        if (window.innerWidth <= 768) {
+            if (window.lenis) window.lenis.stop();
+            if (mainNavbar) {
+                mainNavbar.style.opacity = '0';
+                mainNavbar.style.pointerEvents = 'none';
+            }
+
+            const existingModal = document.querySelector('.mobile-project-card');
+            if (existingModal) existingModal.remove();
+
+            const modalHTML = `
+                <div class="mobile-project-card" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); z-index:99999; display:flex; align-items:center; justify-content:center; padding:1.5rem;">
+                    <div class="mobile-card-content" style="background:var(--bg-secondary); width:100%; max-width:380px; max-height:85vh; border-radius:24px; padding:2rem 1.5rem; overflow-y:auto; position:relative; box-shadow:0 25px 50px rgba(0,0,0,0.4); display:flex; flex-direction:column; gap:1.2rem;">
+                        <button class="mobile-close-btn" id="mob-close" style="position:absolute; top:15px; right:15px; width:36px; height:36px; border-radius:50%; background:var(--bg-primary); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-primary);">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                        <div style="width:100%; height:180px; border-radius:14px; background-image:url('${project.image}'); background-size:cover; background-position:center;"></div>
+                        <span style="font-family:var(--font-audiowide); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary);">${project.type}</span>
+                        <h2 style="font-family:var(--font-display); font-size:1.6rem; color:var(--text-primary); margin-top:-0.5rem;">${project.name}</h2>
+                        <p style="font-size:0.95rem; color:var(--text-secondary); line-height:1.6;">${project.description}</p>
+                        
+                        <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">Tech Stack:</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                            ${project.tech.map(t => `<span class="tech-tag" style="font-family:var(--font-audiowide); font-size:0.7rem; padding:0.4rem 1rem; border:1px solid rgba(0,0,0,0.15); border-radius:100px;">${t}</span>`).join('')}
+                        </div>
+
+                        <a href="${project.demo}" target="_blank" class="btn btn-primary btn-block" style="margin-top:0.5rem; text-align:center; display:flex; justify-content:center;">View Live ↗</a>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            document.getElementById('mob-close').addEventListener('click', () => {
+                document.querySelector('.mobile-project-card').remove();
+                if (mainNavbar) {
+                    mainNavbar.style.opacity = '1';
+                    mainNavbar.style.pointerEvents = 'all';
+                }
+                if (window.lenis) window.lenis.start();
+            });
+
+            return; 
+        }
+
+        // --- DESKTOP 3D FLIPBOOK LOGIC ---[cite: 22]
+        isBookOpen = true; 
         if (window.lenis) window.lenis.stop();
 
-        // Populate Project Data
-        const project = book.userData.project;
         document.getElementById('fb-cover-img').style.backgroundImage = `url(${project.image})`;
         document.getElementById('fb-title').textContent = project.name;
         document.getElementById('fb-type').textContent = project.type;
@@ -209,7 +252,6 @@ document.addEventListener("DOMContentLoaded", () => {
         
         document.getElementById('fb-link').href = project.demo;
 
-        // Display Overlay
         flipbookOverlay.classList.add('active-overlay');
         
         if(mainNavbar) {
