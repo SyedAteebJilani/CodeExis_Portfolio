@@ -8,11 +8,10 @@
     <meta name="description" content="CodeExis is a premium digital studio building exceptional digital experiences.">
 
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
+    <!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Beau+Rivage&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
 
     <!-- FontAwesome for Social Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -87,35 +86,96 @@
                 
                 <div id="books-canvas-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;"></div>
                 
-                <!-- NEW Detail Panel (Hidden by default, shown via JS) -->
-                <div id="book-detail-panel" class="detail-panel" style="position: absolute; top: 5%; right: 5%; width: 400px; max-height: 75vh; overflow-y: auto; padding: 2rem; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid var(--border); opacity: 0; pointer-events: none; transition: opacity 0.5s ease; z-index: 10;">
-                    <button class="dp-close-btn btn btn-secondary" id="dp-close-btn" style="position: absolute; top: -10px; right: -10px; border-radius: 50%; padding: 0.5rem;">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                    </button>
-                    
-                    <div class="dp-content">
-                        <div class="overlay-type" id="dp-type" style="margin-bottom: 0.5rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.85rem;"></div>
-                        <h3 class="overlay-title" id="dp-title" style="font-size: 2rem; margin-bottom: 1rem;"></h3>
-                        <p class="overlay-description" id="dp-desc" style="margin-bottom: 1rem; line-height: 1.6;"></p>
+              <!-- NEW Detail Panel -->
+<!-- NEW Interactive CSS Flipbook Overlay -->
+<div id="flipbook-overlay" class="scene hidden-overlay">
+    <button class="close-btn" id="flipbook-close-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+    
+    <div class="book" id="interactive-book">
+        <!-- Back Cover (Static at bottom) -->
+        <div class="back-cover">
+            <p style="font-family: var(--font-serif); font-style: italic; color: var(--text-secondary);">The End</p>
+            <button class="btn btn-secondary mt-4" id="btn-read-again" style="border-radius: 50px; padding: 0.5rem 1rem; font-size: 0.85rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px; display: inline;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Read Again
+            </button>
+        </div>
+
+        <!-- Page 2 (Context & Tech) -->
+        <div class="page content-page" data-page-index="1">
+            <div class="face face-front page-action-next">
+                <div class="page-shadow-front"></div>
+                <div class="page-content">
+                    <div class="page-number">3</div>
+                    <div class="text-content">
+                        <h3>Project Details</h3>
+                        <p class="text-sm uppercase tracking-widest text-neutral-400 mb-2 mt-4">Context</p>
+                        <p id="fb-context" class="italic text-neutral-600 mb-6"></p>
                         
-                        <div class="dp-context-wrapper" style="margin-bottom: 1.5rem;">
-                            <h4 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.5rem;">Context</h4>
-                            <p class="overlay-context" id="dp-context" style="border-left: 2px solid var(--border); padding-left: 1rem;"></p>
-                        </div>
+                        <p class="text-sm uppercase tracking-widest text-neutral-400 mb-2">Tech Stack</p>
+                        <div id="fb-tech" class="overlay-tech mb-8"></div>
                         
-                        <div class="dp-tech-wrapper" style="margin-bottom: 2rem;">
-                            <h4 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.5rem;">Tech Stack</h4>
-                            <div class="overlay-tech" id="dp-tech" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
-                        </div>
-                        
-                        <div class="dp-actions">
-                            <a href="#" id="dp-link" class="btn btn-primary btn-block">View Live <span class="btn-arrow">↗</span></a>
-                        </div>
+                        <a href="#" id="fb-link" target="_blank" class="btn btn-primary" style="padding: 0.6rem 1.5rem; font-size: 0.85rem;">View Live ↗</a>
                     </div>
                 </div>
+            </div>
+            <div class="face face-back page-action-prev">
+                <div class="page-shadow-back"></div>
+                <div class="page-content">
+                    <div class="page-number">4</div>
+                    <div class="text-content" style="height:100%; display:flex; align-items:center; justify-content:center; opacity:0.03;">
+                        <span style="font-size: 80px; font-weight: bold; font-style: italic;">4</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 1 (Description) -->
+        <div class="page content-page" data-page-index="0">
+            <div class="face face-front page-action-next">
+                <div class="page-shadow-front"></div>
+                <div class="page-content">
+                    <div class="page-number">1</div>
+                    <div class="text-content">
+                        <h3 id="fb-inner-title">Chapter 1</h3>
+                        <p id="fb-desc" style="font-size: 1.05rem; line-height: 1.8; color: var(--text-secondary);"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="face face-back page-action-prev">
+                <div class="page-shadow-back"></div>
+                <div class="page-content">
+                    <div class="page-number">2</div>
+                    <div class="text-content" style="height:100%; display:flex; align-items:center; justify-content:center; opacity:0.03;">
+                        <span style="font-size: 80px; font-weight: bold; font-style: italic;">2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Front Cover -->
+        <div class="page cover" id="frontCover">
+            <div class="face face-front group" id="fb-cover-img" style="background-size: cover; background-position: center;">
+                <div class="cover-gradient"></div>
+                <div class="cover-spine-shadow"></div>
+                <div class="cover-spine-line"></div>
+                <div class="cover-text">
+                    <h1 id="fb-title">Project Title</h1>
+                    <p id="fb-type">Website</p>
+                </div>
+            </div>
+            <div class="face face-back page-action-prev">
+                <div class="inner-cover-content">
+                    <h2 id="fb-back-title" style="font-family: var(--font-display); font-size: 1.8rem; margin-bottom: 10px;">Project Title</h2>
+                    <div class="divider" style="width: 40px; height: 1px; background: #ccc; margin-bottom: 15px;"></div>
+                    <p style="font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 2px;">Interactive Edition</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
             </div>
         </section>
 

@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Register GSAP Plugins
+    if (!window.gsap || !window.ScrollTrigger) return;
     gsap.registerPlugin(ScrollTrigger);
 
-    // 1. Initialize Smooth Scrolling (Lenis)
+    // --- Smooth Scrolling (Lenis) ---
     window.lenis = new Lenis({
         duration: 1.2,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -16,39 +16,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     lenis.on('scroll', ScrollTrigger.update);
-
-    gsap.ticker.add((time) => {
-        lenis.raf(time * 1000);
-    });
-
+    gsap.ticker.add((time) => lenis.raf(time * 1000));
     gsap.ticker.lagSmoothing(0, 0);
 
-    // 1.5 Hero Typewriter Effect
+    // --- Hero Typewriter Effect (Plays Once) ---
     const heroTypewriter = document.getElementById('hero-typewriter');
     if (heroTypewriter) {
         const text1 = "Your idea deserves more than an ";
         const text2 = "ordinary website.";
         
-        // Inject empty spans for text and cursor
         heroTypewriter.innerHTML = '<span class="typewriter-text"></span><span class="text-accent typewriter-accent"></span><span class="typewriter-cursor" style="display:inline-block; font-weight:300;">|</span>';
         
         const typeText = heroTypewriter.querySelector('.typewriter-text');
         const typeAccent = heroTypewriter.querySelector('.typewriter-accent');
         const cursor = heroTypewriter.querySelector('.typewriter-cursor');
         
-        // Cursor blink using GSAP (400-600ms per cycle logic -> duration: 0.5 means 1s full cycle, 0.5s fade. "steps(1)" makes it blink directly)
-        gsap.fromTo(cursor, 
-            { opacity: 1 }, 
-            {
-                opacity: 0,
-                repeat: -1,
-                yoyo: true,
-                duration: 0.5,
-                ease: "none"
-            }
-        );
+        gsap.fromTo(cursor, { opacity: 1 }, { opacity: 0, repeat: -1, yoyo: true, duration: 0.5, ease: "none" });
 
-        // Start typing shortly after load
         setTimeout(() => {
             let i = 0;
             let isAccent = false;
@@ -60,115 +44,93 @@ document.addEventListener("DOMContentLoaded", () => {
                         i++;
                     } else {
                         isAccent = true;
-                        i = 0; // reset index for second part
+                        i = 0; 
                     }
-                }
-                
-                if (isAccent) {
+                } else {
                     if (i < text2.length) {
                         typeAccent.textContent += text2.charAt(i);
                         i++;
                     } else {
-                        // Typing Finished (Cursor remains blinking, NO deleting)
+                        // Animation stops here, no looping
                         return;
                     }
                 }
 
-                // Natural typing rhythm
-                let speed = 90; // Normal characters (80-110ms range avg)
-                const rand = Math.random();
-                if (rand > 0.8) speed = 150; // Occasional pauses (120-180ms)
-                else if (rand > 0.5) speed = 70; // Faster bursts (60-80ms)
-                
+                let speed = Math.random() > 0.8 ? 150 : (Math.random() > 0.5 ? 70 : 90);
                 setTimeout(typeChar, speed);
             }
-
             typeChar();
-        }, 600); // Start on page load after rendering
+        }, 600); 
     }
 
-    // 2. Custom Cursor
+    // --- Custom Cursor ---
     const cursor = document.querySelector('.cursor');
     const follower = document.querySelector('.cursor-follower');
     
-    if (window.matchMedia("(pointer: fine)").matches) {
+    if (window.matchMedia("(pointer: fine)").matches && cursor && follower) {
         document.addEventListener('mousemove', (e) => {
             gsap.to(cursor, { x: e.clientX, y: e.clientY, duration: 0 });
             gsap.to(follower, { x: e.clientX, y: e.clientY, duration: 0.15 });
         });
 
-        const hoverElements = document.querySelectorAll('a, button, .project-card');
-        hoverElements.forEach(el => {
+        document.querySelectorAll('a, button, .project-card').forEach(el => {
             el.addEventListener('mouseenter', () => follower.classList.add('active'));
             el.addEventListener('mouseleave', () => follower.classList.remove('active'));
         });
-    } else {
+    } else if (cursor && follower) {
         cursor.style.display = 'none';
         follower.style.display = 'none';
     }
 
-    // 3. Inject Config Data
+    // --- Inject Config & Services ---
     const whatsappLink = document.getElementById('whatsapp-link');
-    if (whatsappLink) {
+    if (whatsappLink && typeof CONFIG !== 'undefined') {
         whatsappLink.href = `https://wa.me/${CONFIG.whatsapp}`;
     }
 
-    // 4. Inject Services (Text Marquee)
     const servicesMarquee = document.getElementById('services-marquee');
-    if (servicesMarquee) {
+    if (servicesMarquee && typeof SERVICES !== 'undefined') {
         const itemsHtml = SERVICES.map(service => `
             <div class="marquee-item">
                 <span class="marquee-name">${service.name}</span>
                 <span class="marquee-desc">${service.description}</span>
             </div>
         `).join('');
-        
-        // Inject multiple times for seamless infinite scroll
         servicesMarquee.innerHTML = itemsHtml + itemsHtml + itemsHtml;
     }
 
-    // 5. Books Showcase Logic handled in 3d-books.js
-
-    // Mobile menu
+    // --- Mobile Menu ---
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     const navLinks = document.querySelector('.nav-links');
     
-    mobileMenuBtn.addEventListener('click', () => {
-        mobileMenuBtn.classList.toggle('active');
-        navLinks.classList.toggle('active');
-    });
-
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', () => {
-            mobileMenuBtn.classList.remove('active');
-            navLinks.classList.remove('active');
+    if (mobileMenuBtn && navLinks) {
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenuBtn.classList.toggle('active');
+            navLinks.classList.toggle('active');
         });
-    });
 
-    // 6. Project Overlay Logic removed (handled inside 3d-books.js now)
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenuBtn.classList.remove('active');
+                navLinks.classList.remove('active');
+            });
+        });
+    }
 
-    // Reveal animations
+    // --- Section Reveal Animations ---
     gsap.utils.toArray('.section-title').forEach(title => {
         gsap.from(title, {
-            scrollTrigger: {
-                trigger: title,
-                start: "top 85%",
-            },
-            y: 30,
-            opacity: 0,
-            duration: 0.8,
-            ease: "power3.out"
+            scrollTrigger: { trigger: title, start: "top 85%" },
+            y: 30, opacity: 0, duration: 0.8, ease: "power3.out"
         });
     });
 
-    // About Section Text Scrub Animation (Word by Word)
+    // --- About Section Text Scrub Animation ---
     const aboutHeadline = document.querySelector('.about-headline');
     if (aboutHeadline) {
-        // Step 1: Wrap each word in a span
         const words = aboutHeadline.textContent.trim().split(/\s+/);
         aboutHeadline.innerHTML = words.map(w => `<span class="word">${w}</span>`).join(" ");
 
-        // Step 2: GSAP grey to black scroll-scrub animation
         gsap.to(".about-headline .word", {
             color: "#000000",
             stagger: 0.1,
@@ -182,113 +144,93 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Text Signature Typewriter Animation
+    // --- Text Signature Animation ---
     const signatureText = document.querySelector('.signature-text');
     const signatureTitle = document.querySelector('.signature-title');
 
     if (signatureText && signatureTitle) {
-        const fullText = "Ateeb Jilani.";
+        const fullText = "Aateeb Jilani.";
         
-        // Ensure container dimensions before clearing to prevent layout collapse
         const textRect = signatureText.getBoundingClientRect();
         signatureText.style.minHeight = (textRect.height || 30) + 'px';
         signatureText.style.minWidth = (textRect.width || 150) + 'px';
         signatureText.style.clipPath = 'inset(0 0 0 0)'; 
 
-        // Hide name and title initially
         signatureText.textContent = ""; 
         gsap.set(signatureTitle, { opacity: 0, y: 15 });
+
+        let hasTitleAppeared = false; 
+
+        function startSignatureLoop() {
+            let i = 0;
+            gsap.set(signatureText, { "--underline-scale": 0 });
+            signatureText.textContent = ""; 
+            
+            const typing = setInterval(() => {
+                signatureText.textContent += fullText.charAt(i);
+                i++;
+                if (i >= fullText.length) {
+                    clearInterval(typing);
+                    gsap.to(signatureText, { "--underline-scale": 1, duration: 0.6, ease: "power2.out" });
+                    
+                    if (!hasTitleAppeared) {
+                        gsap.to(signatureTitle, { opacity: 1, y: 0, duration: 0.8, delay: 0.2, ease: "power2.out" });
+                        hasTitleAppeared = true;
+                    }
+
+                    const delay = Math.floor(Math.random() * 3000) + 2000;
+                    setTimeout(() => {
+                        gsap.to(signatureText, { 
+                            "--underline-scale": 0, 
+                            duration: 0.3, 
+                            onComplete: startSignatureLoop 
+                        });
+                    }, delay);
+                }
+            }, 100);
+        }
 
         ScrollTrigger.create({
             trigger: '.founder-signature-wrapper',
             start: "top 85%", 
             once: true,
             onEnter: () => {
-                let i = 0;
-                gsap.set(signatureText, { "--underline-scale": 0 });
-                
-                const typing = setInterval(() => {
-                    signatureText.textContent += fullText.charAt(i);
-                    i++;
-                    if (i >= fullText.length) {
-                        clearInterval(typing);
-                        
-                        // Underline animation
-                        gsap.to(signatureText, {
-                            "--underline-scale": 1,
-                            duration: 0.6,
-                            ease: "power2.out"
-                        });
-
-                        // Fade in the Founder title
-                        gsap.to(signatureTitle, {
-                            opacity: 1,
-                            y: 0,
-                            duration: 0.8,
-                            delay: 0.2, 
-                            ease: "power2.out"
-                        });
-                    }
-                }, 100);
+                startSignatureLoop();
             }
         });
     }
 
-    // Contact Section Animations
+    // --- Contact Section Animations ---
     if (document.querySelector('.contact-section')) {
         gsap.from('.contact-content', {
-            scrollTrigger: {
-                trigger: '.contact-section',
-                start: "top 80%",
-            },
-            y: 40,
-            opacity: 0,
-            duration: 0.8,
-            ease: "power3.out"
+            scrollTrigger: { trigger: '.contact-section', start: "top 80%" },
+            y: 40, opacity: 0, duration: 0.8, ease: "power3.out"
         });
 
         gsap.from('.contact-visual', {
-            scrollTrigger: {
-                trigger: '.contact-section',
-                start: "top 80%",
-            },
-            y: 40,
-            opacity: 0,
-            scale: 0.95,
-            duration: 0.8,
-            delay: 0.2,
-            ease: "power3.out"
+            scrollTrigger: { trigger: '.contact-section', start: "top 80%" },
+            y: 40, opacity: 0, scale: 0.95, duration: 0.8, delay: 0.2, ease: "power3.out"
         });
     }
 
-    // Sci-Fi Target Reticle Hover Effect
+    // --- Sci-Fi Target Reticle Effects ---
     const reticleHTML = `
         <div class="reticle">
-            <div class="corner top-left"></div>
-            <div class="corner top-right"></div>
-            <div class="corner bottom-left"></div>
-            <div class="corner bottom-right"></div>
-            <div class="crosshair-h"></div>
-            <div class="crosshair-v"></div>
-            <div class="tick tick-h1"></div>
-            <div class="tick tick-h2"></div>
-            <div class="tick tick-h3"></div>
-            <div class="tick tick-h4"></div>
-            <div class="tick tick-v1"></div>
-            <div class="tick tick-v2"></div>
-            <div class="tick tick-v3"></div>
-            <div class="tick tick-v4"></div>
+            <div class="corner top-left"></div><div class="corner top-right"></div>
+            <div class="corner bottom-left"></div><div class="corner bottom-right"></div>
+            <div class="crosshair-h"></div><div class="crosshair-v"></div>
+            <div class="tick tick-h1"></div><div class="tick tick-h2"></div>
+            <div class="tick tick-h3"></div><div class="tick tick-h4"></div>
+            <div class="tick tick-v1"></div><div class="tick tick-v2"></div>
+            <div class="tick tick-v3"></div><div class="tick tick-v4"></div>
         </div>
     `;
 
-    const allBtns = document.querySelectorAll('.btn, .nav-link, .footer-links a, .logo');
-    const filteredBtns = Array.from(allBtns).filter(btn => {
+    Array.from(document.querySelectorAll('.btn, .nav-link, .footer-links a, .logo')).filter(btn => {
         const text = (btn.innerText || btn.textContent || "").toLowerCase();
         const href = btn.getAttribute('href') || "";
         return !text.includes("let's talk") && href !== "#contact";
-    });
-
-    filteredBtns.forEach(btn => {
+    }).forEach(btn => {
         btn.insertAdjacentHTML('beforeend', reticleHTML);
         
         const reticle = btn.querySelector('.reticle');
@@ -297,44 +239,28 @@ document.addEventListener("DOMContentLoaded", () => {
         const crossV = reticle.querySelector('.crosshair-v');
         const ticks = reticle.querySelectorAll('.tick');
 
-        // Set initial invisible state to prevent flashing
         gsap.set([corners, crossH, crossV, ticks], { opacity: 0 });
-
         const tl = gsap.timeline({ paused: true, defaults: { duration: 0.3, ease: "power2.out" } });
 
-        // Snap corners inward
-        tl.fromTo(corners, 
-            { scale: 1.6, opacity: 0 }, 
-            { scale: 1, opacity: 1, stagger: 0.05 }, 
-            0
-        );
-
-        // Expand crosshairs
+        tl.fromTo(corners, { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.05 }, 0);
         tl.fromTo(crossH, { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 0.3 }, 0.1);
         tl.fromTo(crossV, { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 0.3 }, 0.1);
-
-        // Fade in ticks
         tl.fromTo(ticks, { opacity: 0, scale: 0 }, { opacity: 0.6, scale: 1, stagger: 0.02 }, 0.2);
 
         btn.addEventListener('mouseenter', () => tl.play());
         btn.addEventListener('mouseleave', () => tl.reverse());
     });
 
-    // ─── Dynamic Injection for Let's Talk Corner Button ───
-    const talkBtns = document.querySelectorAll('.btn, .nav-link');
-    
-    talkBtns.forEach(btn => {
+    // --- Dynamic Corner Button Injection ---
+    document.querySelectorAll('.btn, .nav-link').forEach(btn => {
         const textContent = btn.textContent.trim().toLowerCase();
         if (textContent.includes("let's talk") || textContent.includes("lets talk")) {
-            // Create wrapper
             const wrapper = document.createElement('div');
             wrapper.className = 'corner-btn-wrapper';
             
-            // Insert wrapper before the button
             btn.parentNode.insertBefore(wrapper, btn);
             
-            // Generate lines and dots
-            const linesAndDotsHTML = `
+            wrapper.innerHTML = `
                 <div class="corner-line horizontal top" aria-hidden="true"></div>
                 <div class="corner-line vertical right" aria-hidden="true"></div>
                 <div class="corner-line horizontal bottom" aria-hidden="true"></div>
@@ -344,15 +270,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="corner-dot bottom right" aria-hidden="true"></div>
                 <div class="corner-dot bottom left" aria-hidden="true"></div>
             `;
-            wrapper.innerHTML = linesAndDotsHTML;
             
-            // Append button inside wrapper
             wrapper.appendChild(btn);
-            
-            // Update button classes and content
             btn.classList.add('corner-btn');
             
-            // Remove existing reticle if it was appended earlier by the other script
             const oldReticle = btn.querySelector('.reticle');
             if (oldReticle) oldReticle.remove();
 

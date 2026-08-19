@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById('books-canvas-container');
     if (!container) return;
 
-    // 1. SETUP
+    // --- 1. THREE.JS SCENE SETUP ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 0.1, 100);
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -15,21 +15,18 @@ document.addEventListener("DOMContentLoaded", () => {
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // Advanced Lighting (adapted from React component)
-    const hemi = new THREE.HemisphereLight(0x8fa0d8, 0x0d1024, 0.5);
-    scene.add(hemi);
-    
-    const key = new THREE.DirectionalLight(0xffffff, 0.8);
-    key.position.set(3.5, 5, 6);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    scene.add(key);
-
+    // Lighting
+    scene.add(new THREE.HemisphereLight(0x8fa0d8, 0x0d1024, 0.5));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    keyLight.position.set(3.5, 5, 6);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    scene.add(keyLight);
     const fillLight = new THREE.DirectionalLight(0xa9b6ff, 0.3);
     fillLight.position.set(-4, 1, 4);
     scene.add(fillLight);
 
-    // 2. DIMENSIONS & SLOTS (VISIBLE = 3)
+    // --- 2. DIMENSIONS & CAMERA ---
     const VISIBLE = 3;
     const bookWidth = 1.42;
     const bookHeight = 2.14;
@@ -45,10 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateCameraZ();
 
-    // 3. TEXTURE LOADER
+    // --- 3. BOOK MESH GENERATION ---
     const textureLoader = new THREE.TextureLoader();
-
-    // 4. MESH GENERATION (Simplified port of Spring logic -> GSAP)
     const books = [];
     const carouselGroup = new THREE.Group();
     scene.add(carouselGroup);
@@ -58,7 +53,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     PROJECTS.forEach((project, i) => {
         const bookRoot = new THREE.Group();
-        
         const coverGeo = new THREE.BoxGeometry(bookWidth, bookHeight, 0.04);
         
         const coverTex = textureLoader.load(project.image);
@@ -70,13 +64,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const mFront = new THREE.MeshStandardMaterial({ map: coverTex, roughness: 0.6 });
         const mBack = new THREE.MeshStandardMaterial({ color: project.color || 0x22252b, roughness: 0.6 });
         
-        // Block (Pages)
         const blockGeo = new THREE.BoxGeometry(bookWidth - 0.05, bookHeight - 0.04, bookDepth - 0.02);
         const block = new THREE.Mesh(blockGeo, [mEdge, pageMat, mEdge, mEdge, pageMat, pageMat]);
-        block.position.set(0, 0, 0);
         block.castShadow = true;
         
-        // Covers
         const frontMesh = new THREE.Mesh(coverGeo, [mEdge, mEdge, mEdge, mEdge, mFront, pageMat]);
         frontMesh.position.set(0, 0, bookDepth/2);
         frontMesh.castShadow = true;
@@ -86,8 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
         backMesh.castShadow = true;
 
         bookRoot.add(block, frontMesh, backMesh);
-        
-        // Layout
         bookRoot.userData = { project, index: i, baseX: i * (bookWidth + spacing), frontMesh };
         bookRoot.position.set(bookRoot.userData.baseX, 0, 0);
         
@@ -95,15 +84,12 @@ document.addEventListener("DOMContentLoaded", () => {
         books.push(bookRoot);
     });
 
-    // Center starting position
     const startX = -1 * (bookWidth + spacing); 
     const endX = -(PROJECTS.length - 2) * (bookWidth + spacing);
     carouselGroup.position.x = startX;
 
-    // 5. SCROLLTRIGGER INTEGRATION (shiftCarousel alternative via Scroll)
+    // --- 4. SCROLL ANIMATION ---
     let isBookOpen = false;
-    let hoveredBook = null;
-    let savedCarouselX = 0;
 
     ScrollTrigger.create({
         trigger: '#work',
@@ -113,13 +99,154 @@ document.addEventListener("DOMContentLoaded", () => {
         scrub: 1, 
         onUpdate: (self) => {
             if (!isBookOpen) {
-                // Smooth shift across all 8 projects
                 carouselGroup.position.x = gsap.utils.interpolate(startX, endX, self.progress);
             }
         }
     });
 
-    // 6. INTERACTION & UI
+    // --- 5. CSS FLIPBOOK OVERLAY LOGIC (WITH Z-FIGHTING FIX) ---
+    const flipbookOverlay = document.getElementById('flipbook-overlay');
+    const interactiveBook = document.getElementById('interactive-book');
+    const frontCoverCSS = document.getElementById('frontCover');
+    const fbPages = Array.from(document.querySelectorAll('.content-page')).reverse();
+    const mainNavbar = document.querySelector('.navbar'); 
+    
+    let isFlipbookOpen = false;
+    let cssCurrentPageIndex = -1;
+    const cssTotalPages = fbPages.length;
+
+    // CORE FIX: Dynamic translateZ prevents 3D overlapping
+    function updateFlipbookZIndexes() {
+        if(!frontCoverCSS) return;
+        frontCoverCSS.style.zIndex = isFlipbookOpen ? 0 : 100;
+        
+        fbPages.forEach((page, index) => {
+            const isFlipped = index <= cssCurrentPageIndex;
+            if (isFlipped) {
+                // Left side: slightly shift each page towards viewer to prevent overlapping
+                page.style.transform = `rotateY(-180deg) translateZ(${index + 1}px)`;
+                page.style.zIndex = index + 1;
+            } else {
+                // Right side: start from a base offset (2px) to stay strictly above the static back-cover
+                const zOffset = cssTotalPages - index + 2; 
+                page.style.transform = `rotateY(0deg) translateZ(${zOffset}px)`;
+                page.style.zIndex = cssTotalPages - index;
+            }
+        });
+    }
+    
+    // Initialize Z-depths immediately to avoid initial flash
+    updateFlipbookZIndexes();
+    
+    document.querySelectorAll('.page-action-next').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (cssCurrentPageIndex < cssTotalPages - 1) {
+                cssCurrentPageIndex++;
+                updateFlipbookZIndexes();
+            }
+        });
+    });
+
+    document.querySelectorAll('.page-action-prev').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (cssCurrentPageIndex >= 0) {
+                cssCurrentPageIndex--;
+                updateFlipbookZIndexes();
+            }
+        });
+    });
+
+    document.getElementById('btn-read-again')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cssCurrentPageIndex = -1;
+        updateFlipbookZIndexes();
+    });
+
+    function closeBook() {
+        if (!isBookOpen) return;
+        
+        isFlipbookOpen = false;
+        cssCurrentPageIndex = -1;
+        interactiveBook.classList.remove('is-open');
+        frontCoverCSS.classList.remove('is-open');
+        updateFlipbookZIndexes();
+
+        if(mainNavbar) {
+            mainNavbar.style.opacity = '1';
+            mainNavbar.style.pointerEvents = 'all';
+        }
+
+        setTimeout(() => {
+            flipbookOverlay.classList.remove('active-overlay');
+            container.style.filter = "none";
+            if (window.lenis) window.lenis.start();
+            isBookOpen = false;
+        }, 800); 
+    }
+
+    function openBook(book) {
+        if (isBookOpen) return;
+        isBookOpen = true; 
+        
+        if (window.lenis) window.lenis.stop();
+
+        // Populate Project Data
+        const project = book.userData.project;
+        document.getElementById('fb-cover-img').style.backgroundImage = `url(${project.image})`;
+        document.getElementById('fb-title').textContent = project.name;
+        document.getElementById('fb-type').textContent = project.type;
+        document.getElementById('fb-back-title').textContent = project.name;
+        document.getElementById('fb-inner-title').textContent = project.name;
+        document.getElementById('fb-desc').textContent = project.description;
+        document.getElementById('fb-context').textContent = project.context;
+        
+        document.getElementById('fb-tech').innerHTML = project.tech.map(t => 
+            `<span class="tech-tag">${t}</span>`
+        ).join('');
+        
+        document.getElementById('fb-link').href = project.demo;
+
+        // Display Overlay
+        flipbookOverlay.classList.add('active-overlay');
+        
+        if(mainNavbar) {
+            mainNavbar.style.opacity = '0';
+            mainNavbar.style.pointerEvents = 'none';
+            mainNavbar.style.transition = 'opacity 0.4s ease';
+        }
+
+        setTimeout(() => {
+            isFlipbookOpen = true;
+            interactiveBook.classList.add('is-open');
+            frontCoverCSS.classList.add('is-open');
+            setTimeout(updateFlipbookZIndexes, 750);
+        }, 100);
+
+        container.style.filter = "blur(10px)";
+        container.style.transition = "filter 0.5s ease";
+    }
+
+    document.getElementById('flipbook-close-btn')?.addEventListener('click', closeBook);
+    
+    flipbookOverlay.addEventListener('click', (e) => {
+        if (e.target === flipbookOverlay) closeBook();
+    });
+    
+    window.addEventListener('keydown', (e) => {
+        if (!isFlipbookOpen) return;
+        if (e.key === 'ArrowRight') {
+            if (cssCurrentPageIndex < cssTotalPages - 1) { cssCurrentPageIndex++; updateFlipbookZIndexes(); }
+        }
+        if (e.key === 'ArrowLeft') {
+             if (cssCurrentPageIndex >= 0) { cssCurrentPageIndex--; updateFlipbookZIndexes(); }
+        }
+        if (e.key === 'Escape') closeBook();
+    });
+
+    // --- 6. RAYCASTER & INTERACTION ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2(-2, -2);
     
@@ -129,102 +256,8 @@ document.addEventListener("DOMContentLoaded", () => {
         mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     });
+    
     container.addEventListener('mouseleave', () => { mouse.x = -2; mouse.y = -2; });
-
-    const dpPanel = document.getElementById('book-detail-panel');
-    const closeBtn = document.getElementById('dp-close-btn');
-
-    function closeBook() {
-        if(!isBookOpen || !hoveredBook) return;
-        
-        dpPanel.style.opacity = '0';
-        dpPanel.style.pointerEvents = 'none';
-        
-        if (window.lenis) window.lenis.start();
-
-        gsap.to(hoveredBook.userData.frontMesh.rotation, {
-            y: 0, duration: 0.8, ease: "power3.inOut",
-            transformOrigin: "left center"
-        });
-        
-        gsap.to(camera.position, {
-            x: 0, y: 0, z: camera.userData.baseZ,
-            duration: 0.8, ease: "power3.inOut"
-        });
-
-        gsap.to(carouselGroup.position, {
-            x: savedCarouselX, duration: 0.8, ease: "power3.inOut",
-            onComplete: () => isBookOpen = false
-        });
-    }
-
-    function openBook(book) {
-        if(isBookOpen) return;
-        isBookOpen = true;
-        hoveredBook = book;
-        savedCarouselX = carouselGroup.position.x;
-        
-        if (window.lenis) window.lenis.stop();
-
-        // Animate Camera & Carousel to frame the open book on the left
-        gsap.to(carouselGroup.position, {
-            x: -book.userData.baseX - 1.5,
-            duration: 0.8, ease: "power3.inOut"
-        });
-        
-        gsap.to(camera.position, {
-            x: -1, z: camera.userData.baseZ * 0.65,
-            duration: 0.8, ease: "power3.inOut"
-        });
-
-        // Open Cover Pivot
-        gsap.to(book.userData.frontMesh.rotation, {
-            y: -Math.PI * 0.7,
-            duration: 0.8, ease: "power3.inOut",
-            transformOrigin: "left center" // ensure it swings open from spine edge
-        });
-
-        // Populate Detail Panel (No Goodreads/Star ratings as requested)
-        const project = book.userData.project;
-        document.getElementById('dp-title').textContent = project.name;
-        document.getElementById('dp-type').textContent = project.type;
-        document.getElementById('dp-desc').textContent = project.description;
-        document.getElementById('dp-context').textContent = project.context;
-        document.getElementById('dp-tech').innerHTML = project.tech.map(t => `<span class="tech-tag" style="padding: 0.3rem 0.6rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 100px; font-size: 0.8rem;">${t}</span>`).join('');
-        
-        const linkBtn = document.getElementById('dp-link');
-        linkBtn.href = project.demo;
-        
-        // GSAP Reticle instantiation for the new button
-        if(!linkBtn.querySelector('.reticle')) {
-            const reticleHTML = `<div class="reticle"><div class="corner top-left"></div><div class="corner top-right"></div><div class="corner bottom-left"></div><div class="corner bottom-right"></div><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="tick tick-h1"></div><div class="tick tick-h2"></div><div class="tick tick-h3"></div><div class="tick tick-h4"></div><div class="tick tick-v1"></div><div class="tick tick-v2"></div><div class="tick tick-v3"></div><div class="tick tick-v4"></div></div>`;
-            linkBtn.insertAdjacentHTML('beforeend', reticleHTML);
-            
-            const reticle = linkBtn.querySelector('.reticle');
-            const corners = reticle.querySelectorAll('.corner');
-            const crossH = reticle.querySelector('.crosshair-h');
-            const crossV = reticle.querySelector('.crosshair-v');
-            const ticks = reticle.querySelectorAll('.tick');
-
-            gsap.set([corners, crossH, crossV, ticks], { opacity: 0 });
-
-            const tl = gsap.timeline({ paused: true, defaults: { duration: 0.3, ease: "power2.out" } });
-            tl.fromTo(corners, { scale: 1.6, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.05 }, 0);
-            tl.fromTo(crossH, { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1 }, 0.1);
-            tl.fromTo(crossV, { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 1 }, 0.1);
-            tl.fromTo(ticks, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.02 }, 0.2);
-
-            linkBtn.addEventListener('mouseenter', () => tl.play());
-            linkBtn.addEventListener('mouseleave', () => tl.reverse());
-        }
-
-        setTimeout(() => {
-            dpPanel.style.opacity = '1';
-            dpPanel.style.pointerEvents = 'all';
-        }, 500);
-    }
-
-    closeBtn.addEventListener('click', closeBook);
 
     container.addEventListener('click', () => {
         if (isBookOpen) return;
@@ -237,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // 7. RENDER LOOP (Physics mapping)
+    // --- 7. RENDER LOOP ---
     let time = 0;
     function animate() {
         requestAnimationFrame(animate);
@@ -248,7 +281,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 const absX = book.position.x + carouselGroup.position.x;
                 const dist = Math.abs(absX);
                 
-                // Scale based on center proximity
                 let scale = 1.0 - (dist / 10);
                 scale = Math.max(0.85, Math.min(1.1, scale)); 
 
@@ -272,7 +304,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 book.rotation.y += (targetRotY - book.rotation.y) * 0.1;
                 book.rotation.x += (targetRotX - book.rotation.x) * 0.1;
                 
-                // Idle float
                 book.position.y = Math.sin(time + book.userData.index) * 0.05;
             });
         }
@@ -282,6 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     animate();
 
+    // --- 8. RESIZE LISTENER ---
     window.addEventListener('resize', () => {
         renderer.setSize(container.clientWidth, container.clientHeight);
         camera.aspect = container.clientWidth / container.clientHeight;
